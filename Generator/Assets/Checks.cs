@@ -1,6 +1,7 @@
 namespace TPRandomizer
 {
     using System.Collections.Generic;
+    using TPRandomizer.SSettings.Enums;
 
     /// <summary>
     /// Identifies the basic structure containing multiple fields used to identify a check in the randomizer..
@@ -303,14 +304,14 @@ namespace TPRandomizer
         /// </summary>
         public static void GenerateCheckList()
         {
-            RandomizerSetting parseSetting = Randomizer.RandoSetting;
+            SharedSettings parseSetting = Randomizer.SSettings;
             foreach (KeyValuePair<string, Check> check in Randomizer.Checks.CheckDict)
             {
                 Check currentCheck = check.Value;
                 if (currentCheck.checkStatus == "Ready")
                 {
                     if (
-                        (parseSetting.smallKeySettings == "Vanilla")
+                        (parseSetting.smallKeySettings == SmallKeySettings.Vanilla)
                         && currentCheck.category.Contains("Small Key")
                     )
                     {
@@ -318,7 +319,7 @@ namespace TPRandomizer
                     }
 
                     if (
-                        (parseSetting.bossKeySettings == "Vanilla")
+                        (parseSetting.bigKeySettings == BigKeySettings.Vanilla)
                         && currentCheck.category.Contains("Big Key")
                     )
                     {
@@ -326,7 +327,7 @@ namespace TPRandomizer
                     }
 
                     if (
-                        (parseSetting.mapAndCompassSettings == "Vanilla")
+                        (parseSetting.mapAndCompassSettings == MapAndCompassSettings.Vanilla)
                         && (
                             currentCheck.category.Contains("Dungeon Map")
                             || currentCheck.category.Contains("Compass")
@@ -336,21 +337,24 @@ namespace TPRandomizer
                         currentCheck.checkStatus = "Vanilla";
                     }
 
-                    if (!parseSetting.npcItemsShuffled)
+                    if (!parseSetting.shuffleNpcItems)
                     {
                         if (currentCheck.category.Contains("Npc"))
                         {
                             if (
                                 (
-                                    (parseSetting.smallKeySettings == "Keysey")
+                                    (parseSetting.smallKeySettings == SmallKeySettings.Keysey)
                                     && currentCheck.category.Contains("Small Key")
                                 )
                                 || (
-                                    (parseSetting.bossKeySettings == "Keysey")
+                                    (parseSetting.bigKeySettings == BigKeySettings.Keysey)
                                     && currentCheck.category.Contains("Big Key")
                                 )
                                 || (
-                                    (parseSetting.mapAndCompassSettings == "Start_With")
+                                    (
+                                        parseSetting.mapAndCompassSettings
+                                        == MapAndCompassSettings.Start_With
+                                    )
                                     && (
                                         currentCheck.category.Contains("Dungeon Map")
                                         || currentCheck.category.Contains("Compass")
@@ -371,7 +375,7 @@ namespace TPRandomizer
                         }
                     }
 
-                    if (!parseSetting.poesShuffled)
+                    if (!parseSetting.shufflePoes)
                     {
                         if (currentCheck.category.Contains("Poe"))
                         {
@@ -379,7 +383,7 @@ namespace TPRandomizer
                         }
                     }
 
-                    if (!parseSetting.goldenBugsShuffled)
+                    if (!parseSetting.shuffleGoldenBugs)
                     {
                         if (currentCheck.category.Contains("Golden Bug"))
                         {
@@ -405,7 +409,7 @@ namespace TPRandomizer
                         }
                     }
 
-                    if (!parseSetting.shopItemsShuffled)
+                    if (!parseSetting.shuffleShopItems)
                     {
                         if (currentCheck.category.Contains("Shop"))
                         {
@@ -417,7 +421,7 @@ namespace TPRandomizer
                 }
             }
 
-            if (!parseSetting.prologueSkipped)
+            if (!parseSetting.skipPrologue)
             {
                 // We want to set Uli Cradle Delivery vanilla if intro is not skipped since a Fishing Rod has to be there in order to progress the seed.
                 // We also place the Lantern vanilla because it is a big logic hole and since we don't know how to make coro give both items in one state yet, it's safer to do this.
@@ -453,7 +457,7 @@ namespace TPRandomizer
                 Randomizer.Checks.CheckDict["Ordon Shield"].checkStatus = "Vanilla";
             }
 
-            if (parseSetting.mdhSkipped)
+            if (parseSetting.skipMdh)
             {
                 Randomizer.Checks.CheckDict["Jovani House Poe"].checkStatus = "Excluded";
             }

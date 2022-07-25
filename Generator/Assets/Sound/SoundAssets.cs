@@ -5,6 +5,7 @@ namespace TPRandomizer.Assets
     using System.Linq;
     using Newtonsoft.Json;
     using System.IO;
+    using TPRandomizer.FcSettings.Enums;
 
     /// <summary>
     /// summary text.
@@ -34,43 +35,40 @@ namespace TPRandomizer.Assets
             public bool isFanfare { get; set; }
         };
 
-        //The Bgm Section will be layed out as follows (BgmReplacementCount, {bgmId,replacementId,replacementWave},{...},fanfareReplacementCount,fanfareId,replacementId,{...})
-        public static List<byte> GenerateBgmData()
+        //The Bgm Section will be laid out as follows: (BgmReplacementCount,
+        //{bgmId,replacementId,replacementWave},{...},fanfareReplacementCount,fanfareId,replacementId,{...})
+        public static List<byte> GenerateBgmData(SeedData seedData)
         {
-            const int bgmSetting_Vanilla = 0;
-            const int bgmSetting_Overworld = 1;
-            const int bgmSetting_Dungeon = 2;
-            const int bgmSetting_All = 3;
             List<byte> data = new();
             List<bgmData> replacementPool = new();
             List<bgmReplacement> bgmReplacementArray = new();
-            if (Randomizer.RandoSetting.backgroundMusicSetting == bgmSetting_Vanilla)
+            if (seedData.fcSettings.randomizeBgm == RandomizeBgm.Off)
             {
                 return data;
             }
             Dictionary<string, bgmData> dataList = JsonConvert.DeserializeObject<
                 Dictionary<string, bgmData>
             >(File.ReadAllText(Global.CombineRootPath("./Assets/Sound/BackgroundMusic.json")));
-            if (Randomizer.RandoSetting.backgroundMusicSetting != bgmSetting_Vanilla)
+            if (seedData.fcSettings.randomizeBgm != RandomizeBgm.Off)
             {
                 foreach (KeyValuePair<string, bgmData> currentData in dataList)
                 {
                     if (
-                        Randomizer.RandoSetting.backgroundMusicSetting == bgmSetting_Overworld
+                        seedData.fcSettings.randomizeBgm == RandomizeBgm.Overworld
                         && currentData.Value.sceneBgm == true
                     )
                     {
                         replacementPool.Add(currentData.Value);
                     }
                     if (
-                        Randomizer.RandoSetting.backgroundMusicSetting == bgmSetting_Dungeon
+                        seedData.fcSettings.randomizeBgm == RandomizeBgm.Dungeon
                         && currentData.Value.dungeonBgm == true
                     )
                     {
                         replacementPool.Add(currentData.Value);
                     }
                     if (
-                        Randomizer.RandoSetting.backgroundMusicSetting == bgmSetting_All
+                        seedData.fcSettings.randomizeBgm == RandomizeBgm.All
                         && (
                             currentData.Value.sceneBgm == true
                             || currentData.Value.bossBgm == true
@@ -128,17 +126,17 @@ namespace TPRandomizer.Assets
                     data.Add((byte)0x0); // Padding
                 }
             }
-            SeedData.BgmHeaderRaw.bgmTableNumEntries = ((byte)bgmReplacementArray.Count);
-            SeedData.BgmHeaderRaw.bgmTableSize = (UInt16)data.Count;
+            seedData.BgmHeaderRaw.bgmTableNumEntries = ((byte)bgmReplacementArray.Count);
+            seedData.BgmHeaderRaw.bgmTableSize = (UInt16)data.Count;
             return data;
         }
 
-        public static List<byte> GenerateFanfareData()
+        public static List<byte> GenerateFanfareData(SeedData seedData)
         {
             List<byte> data = new();
             List<bgmData> replacementPool = new();
             List<bgmReplacement> fanfareReplacementArray = new();
-            if (Randomizer.RandoSetting.shuffleItemFanfares)
+            if (seedData.fcSettings.randomizeFanfares)
             {
                 Dictionary<string, bgmData> dataList = JsonConvert.DeserializeObject<
                     Dictionary<string, bgmData>
@@ -195,8 +193,10 @@ namespace TPRandomizer.Assets
                     data.Add((byte)0x0); // Padding
                 }
             }
-            SeedData.BgmHeaderRaw.fanfareTableNumEntries = (byte)fanfareReplacementArray.Count;
-            SeedData.BgmHeaderRaw.fanfareTableSize = (UInt16)data.Count;
+
+            seedData.BgmHeaderRaw.fanfareTableNumEntries = (byte)fanfareReplacementArray.Count;
+            seedData.BgmHeaderRaw.fanfareTableSize = (UInt16)data.Count;
+
             return data;
         }
     }

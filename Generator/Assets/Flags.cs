@@ -1,6 +1,7 @@
 namespace TPRandomizer.Assets
 {
     using System.Collections.Generic;
+    using TPRandomizer.SSettings.Enums;
 
     /// <summary>
     /// summary text.
@@ -538,25 +539,25 @@ namespace TPRandomizer.Assets
                 { 15, OpenSnowpeakEventFlags },
                 { 17, OpenCityEventFlags },
             };
-        private static readonly RandomizerSetting RandomizerSettings = Randomizer.RandoSetting;
+        private static readonly SharedSettings RandomizerSettings = Randomizer.SSettings;
 
         /// <summary>
         /// summary text.
         /// </summary>
         public static readonly bool[] FlagSettings = new bool[]
         {
-            /* 0 */RandomizerSettings.prologueSkipped,
+            /* 0 */RandomizerSettings.skipPrologue,
             /* 1 */RandomizerSettings.faronTwilightCleared,
             /* 2 */RandomizerSettings.eldinTwilightCleared,
             /* 3 */RandomizerSettings.lanayruTwilightCleared,
             /* 4 */RandomizerSettings.skipMinorCutscenes,
-            /* 5 */RandomizerSettings.faronWoodsLogic == "Open",
-            /* 6 */RandomizerSettings.mdhSkipped,
-            /* 7 */RandomizerSettings.smallKeySettings == "Keysey",
-            /* 8 */RandomizerSettings.bossKeySettings == "Keysey",
-            /* 9 */RandomizerSettings.mapAndCompassSettings == "Start_With",
-            /* 10 */RandomizerSettings.castleRequirements == "Open",
-            /* 11 */RandomizerSettings.palaceRequirements == "Open",
+            /* 5 */RandomizerSettings.faronWoodsLogic == FaronWoodsLogic.Open,
+            /* 6 */RandomizerSettings.skipMdh,
+            /* 7 */RandomizerSettings.smallKeySettings == SmallKeySettings.Keysey,
+            /* 8 */RandomizerSettings.bigKeySettings == BigKeySettings.Keysey,
+            /* 9 */RandomizerSettings.mapAndCompassSettings == MapAndCompassSettings.Start_With,
+            /* 10 */RandomizerSettings.castleRequirements == CastleRequirements.Open,
+            /* 11 */RandomizerSettings.palaceRequirements == PalaceRequirements.Open,
             /* 12 */RandomizerSettings.skipMinesEntrance,
             /* 13 */RandomizerSettings.skipLakebedEntrance,
             /* 14 */RandomizerSettings.skipArbitersEntrance,

@@ -1,19 +1,20 @@
 namespace TPRandomizer
 {
-    using System;
-    using System.Collections.Generic;
     using TPRandomizer.Util;
+    using TPRandomizer.FcSettings.Enums;
 
     public class FileCreationSettings
     {
-        public string gameRegion { get; }
+        public GameRegion gameRegion { get; }
         public byte seedNumber { get; }
-        public int randomizeBgm { get; }
+        public RandomizeBgm randomizeBgm { get; }
         public bool randomizeFanfares { get; }
         public bool disableEnemyBgm { get; }
-        public int tunicColor { get; }
-        public int lanternColor { get; }
-        public int midnaHairColor { get; }
+
+        // public int tunicColor { get; }
+        public int lanternGlowColor { get; }
+
+        // public int midnaHairColor { get; }
         public int heartColor { get; }
         public int aBtnColor { get; }
         public int bBtnColor { get; }
@@ -25,17 +26,17 @@ namespace TPRandomizer
         {
             BitsProcessor processor = new BitsProcessor(bits);
 
-            gameRegion = processor.NextString(FcSettingsOptions.gameRegion, 3);
-            seedNumber = processor.NextNibble();
+            gameRegion = (GameRegion)processor.NextInt(3);
+            seedNumber = (byte)processor.NextInt(4);
 
-            randomizeBgm = processor.NextInt(1);
+            randomizeBgm = (RandomizeBgm)processor.NextInt(2);
             randomizeFanfares = processor.NextBool();
             disableEnemyBgm = processor.NextBool();
 
-            tunicColor = processor.NextInt(4);
-            lanternColor = processor.NextInt(4);
-            midnaHairColor = processor.NextInt(1);
-            heartColor = processor.NextInt(3);
+            // tunicColor = processor.NextInt(4);
+            lanternGlowColor = processor.NextInt(4);
+            // midnaHairColor = processor.NextInt(1);
+            heartColor = processor.NextInt(4);
             aBtnColor = processor.NextInt(4);
             bBtnColor = processor.NextInt(3);
             xBtnColor = processor.NextInt(4);
@@ -47,31 +48,6 @@ namespace TPRandomizer
         {
             string bits = SettingsEncoder.DecodeToBitString(fcSettingsString);
             return new FileCreationSettings(bits);
-        }
-
-        private class FcSettingsOptions
-        {
-            public static readonly string[] gameRegion = new string[] { "NTSC", "PAL", "JAP" };
-        }
-
-        public void UpdateRandoSettings(RandomizerSetting randoSettings)
-        {
-            randoSettings.gameRegion = gameRegion;
-            randoSettings.seedNumber = seedNumber;
-
-            randoSettings.backgroundMusicSetting = randomizeBgm;
-            randoSettings.shuffleItemFanfares = randomizeFanfares;
-            randoSettings.disableEnemyBackgoundMusic = disableEnemyBgm;
-
-            randoSettings.TunicColor = tunicColor;
-            randoSettings.lanternColor = lanternColor;
-            randoSettings.MidnaHairColor = midnaHairColor;
-            randoSettings.heartColor = heartColor;
-            randoSettings.aButtonColor = aBtnColor;
-            randoSettings.bButtonColor = bBtnColor;
-            randoSettings.xButtonColor = xBtnColor;
-            randoSettings.yButtonColor = yBtnColor;
-            randoSettings.zButtonColor = zBtnColor;
         }
     }
 }

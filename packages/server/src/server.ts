@@ -59,11 +59,7 @@ initSecrets();
 const url = require('url');
 const cors = require('cors');
 import express from 'express';
-import {
-  callGenerator,
-  callGeneratorMatchOutput,
-  callGeneratorBuf,
-} from './util';
+import { callGenerator, callGeneratorBuf } from './util';
 import apiSeedProgress from './api/seed/apiSeedProgress';
 import apiSeedGenerate from './api/seed/apiSeedGenerate';
 import apiSeedCancel from './api/seed/apiSeedCancel';
@@ -160,37 +156,6 @@ if (process.env.NODE_ENV === 'production') {
 app.post('/api/seed/generate', apiSeedGenerate);
 app.get('/api/seed/progress/:id', apiSeedProgress);
 app.post('/api/seed/cancel', apiSeedCancel);
-
-app.post(
-  '/api/generateseed',
-  function (req: express.Request, res: express.Response) {
-    const { settingsString, seed } = req.body;
-
-    if (!settingsString || typeof settingsString !== 'string') {
-      res.status(400).send({ error: 'Malformed request.' });
-      return;
-    }
-
-    if (seed && typeof seed !== 'string') {
-      res.status(400).send({ error: 'Malformed request.' });
-      return;
-    }
-
-    const seedStr = seed ? normalizeStringToMax128Bytes(seed) : '';
-    console.log(`seedStr: '${seedStr}'`);
-
-    callGeneratorMatchOutput(
-      ['generate2', settingsString, seedStr],
-      (error, data) => {
-        if (error) {
-          res.status(500).send({ error });
-        } else {
-          res.send({ data: { id: data } });
-        }
-      }
-    );
-  }
-);
 
 interface Aaa {
   name: string;
@@ -300,33 +265,6 @@ app.post('/api/final', function (req: express.Request, res: express.Response) {
     }
   );
 });
-
-app.get(
-  '/api/creategci',
-  function (req: express.Request, res: express.Response) {
-    const { referer } = req.headers;
-
-    const { query } = url.parse(referer, true);
-
-    const { id } = query;
-
-    if (!id) {
-      res.status(400).send({ error: 'Bad referer.' });
-      return;
-    }
-
-    const filePath = resolveOutputPath(`seeds/${id}/input.json`);
-    if (fs.existsSync(filePath)) {
-      const ff = fs.readFileSync(filePath, { encoding: 'utf8' });
-      const json = JSON.parse(ff);
-      res.send({ data: json });
-    } else {
-      res.status(404).send({
-        error: 'Did not find seed data for provided id.',
-      });
-    }
-  }
-);
 
 app.get('/', (req: express.Request, res: express.Response) => {
   fs.readFile(indexHtmlPath, function read(err, data) {
@@ -460,8 +398,10 @@ app.get('/s/:id', (req: express.Request, res: express.Response) => {
         const json = JSON.parse(
           fs.readFileSync(filePath, { encoding: 'utf8' })
         );
-        json.seedHash = undefined;
-        json.itemPlacement = undefined;
+        json.output.seedHash = undefined;
+        json.output.itemPlacement = undefined;
+        // Stringifying will get rid of these undefined values. We don't want to
+        // expose certain values, especially if it is a race seed.
         const fileContents = escapeHtml(JSON.stringify(json));
 
         msg = msg.replace(

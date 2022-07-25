@@ -7,7 +7,8 @@ namespace TPRandomizer
     using System.Linq;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
-    using TPRandomizer.Util;
+    using TPRandomizer.SSettings.Enums;
+    using TPRandomizer.FcSettings.Enums;
     using System.Reflection;
     using Assets;
 
@@ -37,14 +38,9 @@ namespace TPRandomizer
         public static readonly ItemFunctions Items = new();
 
         /// <summary>
-        /// A reference to the settings structures that need to be used by the randomizer.
+        /// A reference to the sSettings.
         /// </summary>
-        public static RandomizerSetting RandoSetting = new();
-
-        /// <summary>
-        /// A reference to the settings that the settings string use that need to be used by the randomizer.
-        /// </summary>
-        public static readonly SettingData RandoSettingData = new();
+        public static SharedSettings SSettings = new();
 
         public static int RequiredDungeons = 0;
 
@@ -107,12 +103,7 @@ namespace TPRandomizer
             bool generationStatus = false;
             int remainingGenerationAttempts = 30;
 
-            Console.WriteLine(
-                "SeedData Version: "
-                    + SeedData.SeedDataVersionMajor
-                    + "."
-                    + SeedData.SeedDataVersionMinor
-            );
+            Console.WriteLine("SeedData Version: " + SeedData.VersionString);
 
             // Generate the dictionary values that are needed and initialize the data for the selected logic type.
             DeserializeChecks();
@@ -120,17 +111,17 @@ namespace TPRandomizer
 
             // Read in the settings string and set the settings values accordingly
             // BackendFunctions.InterpretSettingsString(settingsString);
-            RandoSetting = RandomizerSetting.FromString(settingsString);
-            PropertyInfo[] randoSettingProperties = RandoSetting.GetType().GetProperties();
+            SSettings = SharedSettings.FromString(settingsString);
+            PropertyInfo[] randoSettingProperties = SSettings.GetType().GetProperties();
 
             foreach (PropertyInfo settingProperty in randoSettingProperties)
             {
                 Console.WriteLine(
-                    settingProperty.Name + ": " + settingProperty.GetValue(RandoSetting, null)
+                    settingProperty.Name + ": " + settingProperty.GetValue(SSettings, null)
                 );
             }
 
-            foreach (string checkName in RandoSetting.ExcludedChecks)
+            foreach (string checkName in SSettings.excludedChecks)
             {
                 Randomizer.Checks.CheckDict[checkName].checkStatus = "Excluded";
             }
@@ -143,7 +134,7 @@ namespace TPRandomizer
             Room startingRoom = SetupGraph();
             while (remainingGenerationAttempts > 0)
             {
-                foreach (Item startingItem in Randomizer.RandoSetting.StartingItems)
+                foreach (Item startingItem in Randomizer.SSettings.startingItems)
                 {
                     Randomizer.Items.heldItems.Add(startingItem);
                 }
@@ -153,17 +144,6 @@ namespace TPRandomizer
                 {
                     // Place the items in the world based on the starting room.
                     PlaceItemsInWorld(startingRoom, rnd);
-                    // Console.WriteLine("Generating Seed Data.");
-                    // Assets.SeedData.GenerateSeedData(seedHash);
-                    // Console.WriteLine("Generating Spoiler Log.");
-                    // BackendFunctions.GenerateSpoilerLog(startingRoom, seedHash);
-                    // IEnumerable<string> fileList = new string[]
-                    // {
-                    //     "TPR-v1.0-" + seedHash + ".txt",
-                    //     "TPR-v1.0-" + seedHash + "-Seed-Data.gci"
-                    // };
-                    // BackendFunctions.CreateZipFile("Seed/TPR-v1.0-" + seedHash + ".zip", fileList);
-                    // Console.WriteLine("Generation Complete!");
                     generationStatus = true;
                     break;
                 }
@@ -222,6 +202,7 @@ namespace TPRandomizer
 
             foreach (KeyValuePair<string, Check> checkList in Checks.CheckDict.ToList())
             {
+                // We don't store itemIds in the json for vanilla checks to save space.
                 if (checkList.Value.checkStatus != "Vanilla")
                 {
                     string checkId = CheckIdClass.FromString(checkList.Key);
@@ -251,19 +232,11 @@ namespace TPRandomizer
             placementStrParts.Sort(StringComparer.Ordinal);
             string itemPlacementPart = String.Join("-", placementStrParts);
 
-            //
-
             // Only need to take settings into account which are important to part2.
-
-            // Dictionary<string, Object> part2Settings = GenPart2Settings(false);
-
-            SortedDictionary<string, object> part2SettingsForString = GenPart2Settings(false);
+            SortedDictionary<string, object> part2SettingsForString = GenPart2Settings();
 
             string part2SettingsPart = JsonConvert.SerializeObject(part2SettingsForString);
 
-            // string aaa = JsonConvert.SerializeObject(part2Settings);
-
-            //
             string seedHashAsString = seedHash.ToString("x8");
 
             string filenameInput = String.Join(
@@ -272,7 +245,7 @@ namespace TPRandomizer
             );
 
             int filenameBits = Util.Hash.CalculateMD5(filenameInput);
-            string filename = Util.PlaythroughName.GenName(filenameBits);
+            string playthroughName = Util.PlaythroughName.GenName(filenameBits);
 
             // When generating the filename, the following should be taken into account:
 
@@ -294,190 +267,116 @@ namespace TPRandomizer
             //   example), their playthrough experience would be different even
             //   though the filename is the same.
 
-            Dictionary<string, object> inputJsonRoot = new();
-            inputJsonRoot.Add("version", "1");
-            inputJsonRoot.Add("timestamp", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
-            inputJsonRoot.Add("settingsString", settingsString);
-            inputJsonRoot.Add("seed", seed);
-            inputJsonRoot.Add("seedHash", seedHashAsString);
-            inputJsonRoot.Add("raceSeed", isRaceSeed.ToString().ToLowerInvariant());
-            inputJsonRoot.Add("filename", filename);
-            // inputJsonRoot.Add("settings", GenPart2Settings(true));
-            // inputJsonRoot.Add("itemPlacement", checkIdToItemId);
-            inputJsonRoot.Add("itemPlacement", EncodeItemPlacements(checkNumIdToItemId));
+            // TODO: review if the above comment needs a little revision
 
-            return JsonConvert.SerializeObject(inputJsonRoot);
+            SeedGenResults.Builder builder = new();
+            // inputs
+            builder.settingsString = settingsString;
+            builder.seed = seed;
+            builder.isRaceSeed = isRaceSeed;
+            // outputs
+            builder.seedHashString = seedHashAsString;
+            builder.playthroughName = playthroughName;
+            builder.requiredDungeons = (byte)Randomizer.RequiredDungeons;
+            builder.SetItemPlacements(checkNumIdToItemId);
+
+            return builder.ToString();
         }
 
-        private static string EncodeItemPlacements(SortedDictionary<int, byte> checkNumIdToItemId)
+        private static SortedDictionary<string, object> GenPart2Settings()
         {
-            UInt16 version = 0;
-            string result = SettingsEncoder.EncodeAsVlq16(version);
+            // Please read the comments below when updating the sSettings to
+            // determine if/how this method needs to be updated.
 
-            if (checkNumIdToItemId.Count() == 0)
-            {
-                result += "0";
-                return SettingsEncoder.EncodeAs6BitString(result);
-            }
+            // Generally speaking, it should be added if it affects starting
+            // state or the ability to traverse the game graph.
 
-            result += "1";
-
-            int smallest = checkNumIdToItemId.First().Key;
-            int largest = checkNumIdToItemId.Last().Key;
-
-            result += SettingsEncoder.EncodeNumAsBits(smallest, 9);
-            result += SettingsEncoder.EncodeNumAsBits(largest, 9);
-
-            string itemBits = "";
-
-            for (int i = smallest; i <= largest; i++)
-            {
-                if (checkNumIdToItemId.ContainsKey(i))
-                {
-                    result += "1";
-                    itemBits += SettingsEncoder.EncodeNumAsBits(checkNumIdToItemId[i], 8);
-                }
-                else
-                {
-                    result += "0";
-                }
-            }
-
-            result += itemBits;
-
-            return SettingsEncoder.EncodeAs6BitString(result);
-        }
-
-        private static Dictionary<int, byte> DecodeItemPlacements(string sixCharString)
-        {
-            BitsProcessor processor = new BitsProcessor(
-                SettingsEncoder.DecodeToBitString(sixCharString)
-            );
-
-            Dictionary<int, byte> checkNumIdToItemId = new();
-
-            UInt16 version = processor.NextVlq16();
-
-            if (!processor.NextBool())
-            {
-                return checkNumIdToItemId;
-            }
-
-            int smallest = processor.NextInt(9);
-            int largest = processor.NextInt(9);
-
-            List<int> checkIdsWithItemIds = new();
-
-            for (int i = smallest; i <= largest; i++)
-            {
-                if (processor.NextBool())
-                {
-                    checkIdsWithItemIds.Add(i);
-                }
-            }
-
-            for (int i = 0; i < checkIdsWithItemIds.Count; i++)
-            {
-                byte itemId = processor.NextByte();
-                checkNumIdToItemId[smallest + i] = itemId;
-            }
-
-            return checkNumIdToItemId;
-        }
-
-        private static SortedDictionary<string, object> GenPart2Settings(bool noExclusions)
-        {
             // StringComparer is needed because the default sort order is
             // different on Linux and Windows
             SortedDictionary<string, object> part2Settings = new(StringComparer.Ordinal);
 
             // If a setting matches what the game behavior would have been
-            // before that setting existed, we leave it off when noExclusions is
-            // false.
+            // before that setting existed, we leave it off.
+
+            // We don't add a setting when its only effect has to do with
+            // itemPlacement. itemPlacement is handled on its own. If one seed
+            // generation had smallKeys in OwnDungeon and another had them in
+            // AnyDungeon and the placement ended up being the exact same, (all
+            // other things being the same) the playthroughName should match
+            // because the generated file would be the same, meaning the player
+            // has already played this exact scenario.
+
+            // A setting is only added if it is set to a value which has a
+            // definite impact on the game either. For example, it affects the
+            // starting state (such as you start with these flags already set
+            // and these items in your inventory). Another example would be if
+            // there was a setting that had an impact on your ability to
+            // navigate an edge of the graph during gameplay (such as trying to
+            // enter the Stallord boss fight from the back causes you to
+            // teleport back to the mirror chamber).
+
+            // Note that the string keys must never be changed after initial
+            // release. It is okay if the name does not match exactly with the
+            // sSettings property.
 
             // Multi-option fields which are only included for certain values
-            if (noExclusions || RandoSetting.castleRequirements != "Vanilla")
-                part2Settings.Add("castleRequirements", RandoSetting.castleRequirements);
-            if (noExclusions || RandoSetting.palaceRequirements != "Vanilla")
-                part2Settings.Add("palaceRequirements", RandoSetting.palaceRequirements);
+            if (SSettings.castleRequirements != CastleRequirements.Vanilla)
+                part2Settings.Add("castleRequirements", SSettings.castleRequirements);
+            if (SSettings.palaceRequirements != PalaceRequirements.Vanilla)
+                part2Settings.Add("palaceRequirements", SSettings.palaceRequirements);
             // TODO: Change this one to a boolean called "faronWoodsOpen"
-            if (noExclusions || RandoSetting.faronWoodsLogic == "Open")
-                part2Settings.Add("faronWoodsLogic", RandoSetting.faronWoodsLogic);
-            if (noExclusions || RandoSetting.smallKeySettings == "Keysey")
-                part2Settings.Add("smallKeySettings", RandoSetting.smallKeySettings);
-            if (noExclusions || RandoSetting.bossKeySettings == "Keysey")
-                part2Settings.Add("bossKeySettings", RandoSetting.bossKeySettings);
-            if (noExclusions || RandoSetting.mapAndCompassSettings == "Start_With")
-                part2Settings.Add("mapAndCompassSettings", RandoSetting.mapAndCompassSettings);
+            if (SSettings.faronWoodsLogic == FaronWoodsLogic.Open)
+                part2Settings.Add("faronWoodsLogic", SSettings.faronWoodsLogic);
+            if (SSettings.smallKeySettings == SmallKeySettings.Keysey)
+                part2Settings.Add("smallKeySettings", SSettings.smallKeySettings);
+            if (SSettings.bigKeySettings == BigKeySettings.Keysey)
+                part2Settings.Add("bigKeySettings", SSettings.bigKeySettings);
+            if (SSettings.mapAndCompassSettings == MapAndCompassSettings.Start_With)
+                part2Settings.Add("mapAndCompassSettings", SSettings.mapAndCompassSettings);
 
             // Boolean fields included when true
-            if (noExclusions || RandoSetting.mdhSkipped)
-                part2Settings.Add("mdhSkipped", RandoSetting.mdhSkipped);
-            if (noExclusions || RandoSetting.prologueSkipped)
-                part2Settings.Add("introSkipped", RandoSetting.prologueSkipped);
-            if (noExclusions || RandoSetting.faronTwilightCleared)
-                part2Settings.Add("faronTwilightCleared", RandoSetting.faronTwilightCleared);
-            if (noExclusions || RandoSetting.eldinTwilightCleared)
-                part2Settings.Add("eldinTwilightCleared", RandoSetting.eldinTwilightCleared);
-            if (noExclusions || RandoSetting.lanayruTwilightCleared)
-                part2Settings.Add("lanayruTwilightCleared", RandoSetting.lanayruTwilightCleared);
-            if (noExclusions || RandoSetting.skipMinorCutscenes)
-                part2Settings.Add("skipMinorCutscenes", RandoSetting.skipMinorCutscenes);
-            if (noExclusions || RandoSetting.fastIronBoots)
-                part2Settings.Add("fastIronBoots", RandoSetting.fastIronBoots);
-            if (noExclusions || RandoSetting.quickTransform)
-                part2Settings.Add("quickTransform", RandoSetting.quickTransform);
-            if (noExclusions || RandoSetting.transformAnywhere)
-                part2Settings.Add("transformAnywhere", RandoSetting.transformAnywhere);
-            if (noExclusions || RandoSetting.increaseWallet)
-                part2Settings.Add("increaseWallet", RandoSetting.increaseWallet);
-            if (noExclusions || RandoSetting.modifyShopModels)
-                part2Settings.Add("modifyShopModels", RandoSetting.modifyShopModels);
+            if (SSettings.skipPrologue)
+                part2Settings.Add("skipPrologue", SSettings.skipPrologue);
+            if (SSettings.faronTwilightCleared)
+                part2Settings.Add("faronTwilightCleared", SSettings.faronTwilightCleared);
+            if (SSettings.eldinTwilightCleared)
+                part2Settings.Add("eldinTwilightCleared", SSettings.eldinTwilightCleared);
+            if (SSettings.lanayruTwilightCleared)
+                part2Settings.Add("lanayruTwilightCleared", SSettings.lanayruTwilightCleared);
+            if (SSettings.skipMdh)
+                part2Settings.Add("skipMdh", SSettings.skipMdh);
+            if (SSettings.skipMinorCutscenes)
+                part2Settings.Add("skipMinorCutscenes", SSettings.skipMinorCutscenes);
+            if (SSettings.fastIronBoots)
+                part2Settings.Add("fastIronBoots", SSettings.fastIronBoots);
+            if (SSettings.quickTransform)
+                part2Settings.Add("quickTransform", SSettings.quickTransform);
+            if (SSettings.transformAnywhere)
+                part2Settings.Add("transformAnywhere", SSettings.transformAnywhere);
+            if (SSettings.increaseWallet)
+                part2Settings.Add("increaseWallet", SSettings.increaseWallet);
+            if (SSettings.modifyShopModels)
+                part2Settings.Add("modifyShopModels", SSettings.modifyShopModels);
+
+            if (SSettings.skipMinesEntrance)
+                part2Settings.Add("skipMinesEntrance", SSettings.skipMinesEntrance);
+            if (SSettings.skipLakebedEntrance)
+                part2Settings.Add("skipLakebedEntrance", SSettings.skipLakebedEntrance);
+            if (SSettings.skipArbitersEntrance)
+                part2Settings.Add("skipArbitersEntrance", SSettings.skipArbitersEntrance);
+            if (SSettings.skipSnowpeakEntrance)
+                part2Settings.Add("skipSnowpeakEntrance", SSettings.skipSnowpeakEntrance);
+            if (SSettings.skipToTEntrance)
+                part2Settings.Add("skipToTEntrance", SSettings.skipToTEntrance);
+            if (SSettings.skipCityEntrance)
+                part2Settings.Add("skipCityEntrance", SSettings.skipCityEntrance);
 
             // Complex fields
-            if (noExclusions || RandoSetting.StartingItems?.Count > 0)
-                part2Settings.Add("StartingItems", RandoSetting.StartingItems);
-
-            if (noExclusions)
+            if (SSettings.startingItems?.Count > 0)
             {
-                // Any settings which are not factored into determining if two
-                // outputs should have the same filename should go in here. We
-                // only include these in the generated `input.json` so we can
-                // show the user the values in the generator UI.
-
-                // Value unimportant once items are placed
-                part2Settings.Add("logicRules", RandoSetting.logicRules);
-                part2Settings.Add("goldenBugsShuffled", RandoSetting.goldenBugsShuffled);
-                part2Settings.Add("poesShuffled", RandoSetting.poesShuffled);
-                part2Settings.Add("npcItemsShuffled", RandoSetting.npcItemsShuffled);
-                part2Settings.Add("shopItemsShuffled", RandoSetting.shopItemsShuffled);
-                // Store as number because less space, and also doesn't prevent
-                // us from adjusting the check names in the future.
-                part2Settings.Add(
-                    "ExcludedChecks",
-                    RandoSetting.ExcludedChecks.Select(CheckIdClass.GetCheckIdNum).ToList()
-                );
-                part2Settings.Add("shuffleHiddenSkills", RandoSetting.shuffleHiddenSkills);
-                part2Settings.Add("shuffleSkyCharacters", RandoSetting.shuffleSkyCharacters);
-                part2Settings.Add("iceTrapSettings", RandoSetting.iceTrapSettings);
-
-                // // Input to part2 of the generation process (varies by player)
-                // int TunicColor;
-                // int MidnaHairColor;
-                // int lanternColor;
-                // int heartColor;
-                // int aButtonColor;
-                // int bButtonColor;
-                // int xButtonColor;
-                // int yButtonColor;
-                // int zButtonColor;
-                // bool shuffleBackgroundMusic;
-                // bool shuffleItemFanfares;
-                // bool disableEnemyBackgoundMusic;
-                // string gameRegion;
-
-                // Not stored on the server
-                // int seedNumber;
+                List<Item> startingItems = new(SSettings.startingItems);
+                startingItems.Sort();
+                part2Settings.Add("startingItems", startingItems);
             }
 
             return part2Settings;
@@ -497,85 +396,43 @@ namespace TPRandomizer
             string fileContents = File.ReadAllText(inputJsonPath);
             JObject json = JsonConvert.DeserializeObject<JObject>(fileContents);
 
+            SeedGenResults seedGenResults = new SeedGenResults(json);
+
+            FileCreationSettings fcSettings = FileCreationSettings.FromString(fcSettingsString);
+            SSettings = SharedSettings.FromString(seedGenResults.settingsString);
+
             // Generate the dictionary values that are needed and initialize the data for the selected logic type.
             DeserializeChecks();
             DeserializeRooms();
 
-            // Read in the settings string and set the settings values accordingly
-            // BackendFunctions.InterpretSettingsString(settingsString);
-
-            // TODO: temp disable
-            // RandoSetting.PopulateFromInputJson(json);
-            FileCreationSettings fcSettings = FileCreationSettings.FromString(fcSettingsString);
-            RandoSetting = RandomizerSetting.FromString((string)json["settingsString"]);
-            fcSettings.UpdateRandoSettings(RandoSetting);
-
-            // Dictionary<int, byte> checkNumIdToItemId = DecodeItemPlacements((string)json["itemPlacement2"]);
-            Dictionary<int, byte> checkNumIdToItemId = DecodeItemPlacements(
-                (string)json["itemPlacement"]
-            );
-            Dictionary<string, Item> checkNameToItem = checkNumIdToItemId.ToDictionary(
-                kvp => CheckIdClass.GetCheckName(kvp.Key),
-                kvp => (Item)kvp.Value
-            );
-            // Dictionary<string, Item> itemPlacement = json["itemPlacement"].ToObject<
-            //     Dictionary<string, Item>
-            // >();
-
-            foreach (KeyValuePair<string, Check> checkList in Randomizer.Checks.CheckDict.ToList())
+            foreach (KeyValuePair<int, byte> kvp in seedGenResults.itemPlacements.ToList())
             {
-                Check check = checkList.Value;
-                // string checkId = CheckIdClass.FromString(check.checkName);
-                // if (itemPlacement.ContainsKey(checkId))
-                if (checkNameToItem.ContainsKey(check.checkName))
+                // key is checkId, value is itemId
+                string checkName = CheckIdClass.GetCheckName(kvp.Key);
+                if (Randomizer.Checks.CheckDict.ContainsKey(checkName))
                 {
-                    // check.itemId = itemPlacement[checkId];
-                    check.itemId = checkNameToItem[check.checkName];
+                    Randomizer.Checks.CheckDict[checkName].itemId = (Item)kvp.Value;
                 }
             }
 
-            CheckUnrequiredDungeons();
-
-            // TODO: ^ fill in settings from the JObject json
-
-            // Generate the item pool based on user settings/input.
-            // Randomizer.Items.GenerateItemPool();
-            // CheckFunctions.GenerateCheckList();
-
-            // Generate the world based on the room class values and their neighbour values. If we want to randomize entrances, we would do it before this step.
-            // Room startingRoom = SetupGraph();
-            // while (remainingGenerationAttempts > 0)
-            // {
-            //     foreach (Item startingItem in parseSetting.StartingItems)
-            //     {
-            //         Randomizer.Items.heldItems.Add(startingItem);
-            //     }
-            //     Randomizer.Items.heldItems.AddRange(Randomizer.Items.BaseItemPool);
-            //     remainingGenerationAttempts--;
-            // try
-            // {
-            //         // Place the items in the world based on the starting room.
-            //         PlaceItemsInWorld(startingRoom, rnd);
             Console.WriteLine("\nGenerating Seed Data.");
-            // Assets.SeedData.GenerateSeedData("aBc"); // just making up a seed hash right now
-            byte[] bytes = Assets.SeedData.GenerateSeedDataNewByteArray(
-                (string)json["filename"], // "filename" in input.json will be renamed to playthroughName
-                fcSettings
-            );
+
+            // sSettings from input.json
+            // seedGenResults from input.json, such as required dungeons
+            // fcSettings
+
+            byte[] bytes = SeedData.GenerateSeedDataBytes(seedGenResults, fcSettings);
 
             List<Dictionary<string, object>> jsonRoot = new();
             Dictionary<string, object> dict = new();
 
-            string seedVersion = "1.4";
-            string filename = (string)json["filename"];
-
             string gameVer = "ge";
             switch (fcSettings.gameRegion)
             {
-                case "PAL":
+                case GameRegion.PAL:
                     gameVer = "gp";
                     break;
-                case "JAP":
+                case GameRegion.JAP:
                     gameVer = "gj";
                     break;
             }
@@ -584,12 +441,12 @@ namespace TPRandomizer
             dict.Add(
                 "name",
                 "TprSeed-v"
-                    + seedVersion
+                    + SeedData.VersionString
                     + gameVer
                     + "-"
                     + fcSettings.seedNumber
                     + "--"
-                    + filename
+                    + seedGenResults.playthroughName
                     + ".gci"
             );
             dict.Add("length", bytes.Length);
@@ -633,7 +490,7 @@ namespace TPRandomizer
             //     catch (ArgumentOutOfRangeException a)
             //     {
             //         Console.WriteLine(a + " No checks remaining, starting over..");
-            //         StartOver();
+            // StartOver();
             //         continue;
             //     }
             // }
@@ -765,6 +622,9 @@ namespace TPRandomizer
                 rnd
             );
 
+            // We determine which dungeons are required after the dungeon rewards are placed but before the other checks
+            // are placed because if a certain dungeon's checks need to be excluded, we want to exclude the check before
+            // any items are placed in it.
             CheckUnrequiredDungeons();
 
             // Excluded checks are next and will just be filled with "junk" items (i.e. ammo refills, etc.). This is to
@@ -1062,6 +922,7 @@ namespace TPRandomizer
                 currentRoom.Visited = false;
                 Randomizer.Rooms.RoomDict[currentRoom.RoomName] = currentRoom;
             }
+
             Randomizer.RequiredDungeons = 0;
 
             Randomizer.Rooms.RoomDict["Ordon Province"].IsStartingRoom = true;
@@ -1116,14 +977,14 @@ namespace TPRandomizer
 
             for (int i = 0; i < listOfRequiredDungeons.GetLength(0); i++)
             {
-                if (Randomizer.RandoSetting.logicRules == "Glitchless")
+                if (Randomizer.SSettings.logicRules == LogicRules.Glitchless)
                 {
                     listOfRequiredDungeons[i].requirementChecks = listOfAffectedChecks[i];
                 }
             }
 
             // First we want to check the Hyrule Castle access requirements to get the base required dungeons to access Hyrule.
-            if (Randomizer.RandoSetting.castleRequirements == "Fused_Shadows")
+            if (Randomizer.SSettings.castleRequirements == CastleRequirements.Fused_Shadows)
             {
                 for (int i = 0; i < listOfRequiredDungeons.GetLength(0); i++)
                 {
@@ -1136,7 +997,7 @@ namespace TPRandomizer
                     }
                 }
             }
-            else if (Randomizer.RandoSetting.castleRequirements == "Mirror_Shards")
+            else if (Randomizer.SSettings.castleRequirements == CastleRequirements.Mirror_Shards)
             {
                 for (int i = 0; i < listOfRequiredDungeons.GetLength(0); i++)
                 {
@@ -1149,12 +1010,12 @@ namespace TPRandomizer
                     }
                 }
             }
-            else if (Randomizer.RandoSetting.castleRequirements == "Vanilla")
+            else if (Randomizer.SSettings.castleRequirements == CastleRequirements.Vanilla)
             {
                 // If Palace is required then Arbiters is automatically required.
                 listOfRequiredDungeons[arbiters].isRequired = true;
                 listOfRequiredDungeons[palace].isRequired = true;
-                if (Randomizer.RandoSetting.palaceRequirements == "Fused_Shadows")
+                if (Randomizer.SSettings.palaceRequirements == PalaceRequirements.Fused_Shadows)
                 {
                     for (int i = 0; i < listOfRequiredDungeons.GetLength(0); i++)
                     {
@@ -1167,7 +1028,9 @@ namespace TPRandomizer
                         }
                     }
                 }
-                else if (Randomizer.RandoSetting.palaceRequirements == "Mirror_Shards")
+                else if (
+                    Randomizer.SSettings.palaceRequirements == PalaceRequirements.Mirror_Shards
+                )
                 {
                     for (int i = 0; i < listOfRequiredDungeons.GetLength(0); i++)
                     {
@@ -1180,12 +1043,12 @@ namespace TPRandomizer
                         }
                     }
                 }
-                else if (Randomizer.RandoSetting.palaceRequirements == "Vanilla")
+                else if (Randomizer.SSettings.palaceRequirements == PalaceRequirements.Vanilla)
                 {
                     listOfRequiredDungeons[city].isRequired = true;
                 }
             }
-            else if (Randomizer.RandoSetting.castleRequirements == "All_Dungeons")
+            else if (Randomizer.SSettings.castleRequirements == CastleRequirements.All_Dungeons)
             {
                 for (int i = 0; i < listOfRequiredDungeons.GetLength(0); i++)
                 {
@@ -1198,7 +1061,7 @@ namespace TPRandomizer
                 // If Palace is required then Arbiters is automatically required.
                 listOfRequiredDungeons[arbiters].isRequired = true;
                 listOfRequiredDungeons[palace].isRequired = true;
-                if (Randomizer.RandoSetting.palaceRequirements == "Fused_Shadows")
+                if (Randomizer.SSettings.palaceRequirements == PalaceRequirements.Fused_Shadows)
                 {
                     for (int i = 0; i < listOfRequiredDungeons.GetLength(0); i++)
                     {
@@ -1211,7 +1074,9 @@ namespace TPRandomizer
                         }
                     }
                 }
-                else if (Randomizer.RandoSetting.palaceRequirements == "Mirror_Shards")
+                else if (
+                    Randomizer.SSettings.palaceRequirements == PalaceRequirements.Mirror_Shards
+                )
                 {
                     for (int i = 0; i < listOfRequiredDungeons.GetLength(0); i++)
                     {
@@ -1224,20 +1089,20 @@ namespace TPRandomizer
                         }
                     }
                 }
-                else if (Randomizer.RandoSetting.palaceRequirements == "Vanilla")
+                else if (Randomizer.SSettings.palaceRequirements == PalaceRequirements.Vanilla)
                 {
                     listOfRequiredDungeons[city].isRequired = true;
                 }
             }
 
             // If Faron Woods is closed then we need to beat Forest Temple to leave.
-            if (Randomizer.RandoSetting.faronWoodsLogic == "Closed")
+            if (Randomizer.SSettings.faronWoodsLogic == FaronWoodsLogic.Closed)
             {
                 listOfRequiredDungeons[forest].isRequired = true;
             }
 
             // If MDH is not skipped then we need to complete Lakebed to enter Hyrule
-            if (!Randomizer.RandoSetting.mdhSkipped)
+            if (!Randomizer.SSettings.skipMdh)
             {
                 listOfRequiredDungeons[lakebed].isRequired = true;
             }
@@ -1246,7 +1111,7 @@ namespace TPRandomizer
             {
                 if (!listOfRequiredDungeons[i].isRequired)
                 {
-                    if (Randomizer.RandoSetting.barrenDungeons)
+                    if (Randomizer.SSettings.barrenDungeons)
                     {
                         foreach (string check in listOfRequiredDungeons[i].requirementChecks)
                         {

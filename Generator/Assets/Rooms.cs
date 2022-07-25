@@ -1,6 +1,7 @@
 namespace TPRandomizer
 {
     using System.Collections.Generic;
+    using TPRandomizer.SSettings.Enums;
 
     /// <summary>
     /// summary text.
@@ -67,20 +68,20 @@ namespace TPRandomizer
         /// <returns>A value that determines if the specified item and check meet the regional requirements set by the generation.</returns>
         public static bool IsRegionCheck(Item itemToPlace, Check currentCheck, Room currentRoom)
         {
-            RandomizerSetting parseSetting = Randomizer.RandoSetting;
+            SharedSettings parseSetting = Randomizer.SSettings;
             string itemName = itemToPlace.ToString();
             itemName = itemName.Replace("_", " ");
             if (Randomizer.Items.RegionSmallKeys.Contains(itemToPlace))
             {
                 if (
-                    (parseSetting.smallKeySettings == "Own_Dungeon")
+                    (parseSetting.smallKeySettings == SmallKeySettings.Own_Dungeon)
                     && itemName.Contains(currentRoom.Region)
                 )
                 {
                     return true;
                 }
                 else if (
-                    (parseSetting.smallKeySettings == "Any_Dungeon")
+                    (parseSetting.smallKeySettings == SmallKeySettings.Any_Dungeon)
                     && currentCheck.category.Contains("Dungeon")
                 )
                 {
@@ -89,14 +90,14 @@ namespace TPRandomizer
             }
             else if (Randomizer.Items.DungeonBigKeys.Contains(itemToPlace))
             {
-                if (parseSetting.bossKeySettings == "Own_Dungeon")
+                if (parseSetting.bigKeySettings == BigKeySettings.Own_Dungeon)
                 {
                     if (itemName.Contains(currentRoom.Region))
                     {
                         return true;
                     }
                 }
-                else if (parseSetting.bossKeySettings == "Any_Dungeon")
+                else if (parseSetting.bigKeySettings == BigKeySettings.Any_Dungeon)
                 {
                     if (currentCheck.category.Contains("Dungeon"))
                     {
@@ -106,14 +107,14 @@ namespace TPRandomizer
             }
             else if (Randomizer.Items.DungeonMapsAndCompasses.Contains(itemToPlace))
             {
-                if (parseSetting.mapAndCompassSettings == "Own_Dungeon")
+                if (parseSetting.mapAndCompassSettings == MapAndCompassSettings.Own_Dungeon)
                 {
                     if (itemName.Contains(currentRoom.Region))
                     {
                         return true;
                     }
                 }
-                else if (parseSetting.mapAndCompassSettings == "Any_Dungeon")
+                else if (parseSetting.mapAndCompassSettings == MapAndCompassSettings.Any_Dungeon)
                 {
                     if (currentCheck.category.Contains("Dungeon"))
                     {

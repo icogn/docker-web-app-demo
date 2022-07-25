@@ -130,8 +130,6 @@ function onDomContentLoaded() {
     const { value } = e.target;
     e.target.value = normalizeStringToMax128Bytes(value);
   });
-
-  // tempTestQueueFunc();
 }
 
 function initJwt() {
@@ -338,9 +336,9 @@ document
 document
   .getElementById('disableEnemyBGMCheckbox')
   .addEventListener('click', setSettingsString);
-document.getElementById('tunicColorFieldset').onchange = setSettingsString;
+// document.getElementById('tunicColorFieldset').onchange = setSettingsString;
 document.getElementById('lanternColorFieldset').onchange = setSettingsString;
-document.getElementById('midnaHairColorFieldset').onchange = setSettingsString;
+// document.getElementById('midnaHairColorFieldset').onchange = setSettingsString;
 document.getElementById('heartColorFieldset').onchange = setSettingsString;
 document.getElementById('aButtonColorFieldset').onchange = setSettingsString;
 document.getElementById('bButtonColorFieldset').onchange = setSettingsString;
@@ -452,11 +450,11 @@ function setSettingsString() {
       options.push(listItem[i].getAttribute('data-checkId'));
   }
   settingsStringRaw[22] = options;
-  settingsStringRaw[23] =
-    document.getElementById('tunicColorFieldset').selectedIndex;
-  settingsStringRaw[24] = document.getElementById(
-    'midnaHairColorFieldset'
-  ).selectedIndex;
+  // settingsStringRaw[23] =
+  //   document.getElementById('tunicColorFieldset').selectedIndex;
+  // settingsStringRaw[24] = document.getElementById(
+  //   'midnaHairColorFieldset'
+  // ).selectedIndex;
   settingsStringRaw[25] = document.getElementById(
     'lanternColorFieldset'
   ).selectedIndex;
@@ -521,15 +519,15 @@ function setSettingsString() {
   document.getElementById('settingsStringTextbox').textContent =
     getSettingsString(settingsStringRaw);
 
-  const sSettingsString = genSettingsString();
+  const sSettingsString = window.tpr.shared.genSSettingsFromUi();
   const pSettingsString = window.tpr.shared.genPSettingsFromUi();
   // const pSettingsString = '';
 
   document.getElementById('combinedSettingsString').textContent =
     // sSettingsString + pSettingsString;
-    sSettingsString + window.tpr.shared.genUSettingsFromUi();
+    sSettingsString + window.tpr.shared.genPSettingsFromUi();
 
-  // document.getElementById('newSettingsDisplay').value = genSettingsString();
+  // document.getElementById('newSettingsDisplay').value = window.tpr.shared.genSSettingsFromUi();
   // document.getElementById('newSettingsDisplay').textContent = sSettingsString;
 
   // document.getElementById('seed').value = window.tpr.shared.genPSettingsFromUi();
@@ -537,7 +535,7 @@ function setSettingsString() {
   //   pSettingsString || '<empty>';
 
   // document.getElementById('uSettingsString').value =
-  //   window.tpr.shared.genUSettingsFromUi();
+  //   window.tpr.shared.genPSettingsFromUi();
 }
 
 function getSettingsString(settingsStringRaw) {
@@ -873,10 +871,6 @@ function genExcludedChecksBits() {
   };
 }
 
-function genSettingsString() {
-  return window.tpr.shared.genSSettingsFromUi();
-}
-
 function doGenerateCall(isRaceSeed) {
   if (generateCallInProgress) {
     return;
@@ -887,7 +881,8 @@ function doGenerateCall(isRaceSeed) {
   showGeneratingModal();
 
   const settingsString =
-    genSettingsString() + window.tpr.shared.genUSettingsFromUi();
+    window.tpr.shared.genSSettingsFromUi() +
+    window.tpr.shared.genPSettingsFromUi();
 
   let requesterHash = undefined;
 
@@ -915,13 +910,13 @@ function doGenerateCall(isRaceSeed) {
     .then(({ data, error }) => {
       if (error) {
         generateCallInProgress = false;
-        console.error('`/api/generateseed` error:');
+        console.error('`/api/seed/generate` error:');
         if (error.message) {
           showGeneratingModalError(`Error:\n${error}`);
         } else if (error.seedId) {
           showGenModalOngoingRequestError(error.seedId, error.canCancel);
         } else {
-          console.error('`/api/generateseed` unrecognized error');
+          console.error('`/api/seed/generate` unrecognized error');
         }
       } else if (data && data.seedId && data.requesterHash) {
         try {
@@ -937,17 +932,17 @@ function doGenerateCall(isRaceSeed) {
         window.location.href = `/s/${data.seedId}`;
       } else {
         generateCallInProgress = false;
-        console.error('Unrecognized response from `/api/generateseed`');
+        console.error('Unrecognized response from `/api/seed/generate`');
         console.error(data);
         showGeneratingModalError(
-          'Unrecognized response from `/api/generateseed`.'
+          'Unrecognized response from `/api/seed/generate`.'
         );
       }
     })
     .catch((err) => {
       generateCallInProgress = false;
-      showGeneratingModalError('/api/generateseed error');
-      console.error('/api/generateseed error');
+      showGeneratingModalError('/api/seed/generate error');
+      console.error('/api/seed/generate error');
       console.error(err);
     });
 }
@@ -978,7 +973,8 @@ function initSettingsModal() {
   btn.addEventListener('click', () => {
     // Prepare modal
     currentSettings.textContent =
-      genSettingsString() + window.tpr.shared.genPSettingsFromUi();
+      window.tpr.shared.genSSettingsFromUi() +
+      window.tpr.shared.genPSettingsFromUi();
     $copySuccessText.hide();
     $(fieldErrorText).hide();
     input.value = '';
@@ -1299,54 +1295,6 @@ function testProgressFunc(id) {
     })
     .catch((err) => {
       console.error('/api/seed/progress error');
-      console.error(err);
-    });
-}
-
-function tempTestQueueFunc() {
-  const settingsString =
-    genSettingsString() + window.tpr.shared.genUSettingsFromUi();
-
-  // fetch('/api/seed/generate', {
-  window.tpr.shared
-    .fetch('/api/seed/generate', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        // Authorization: 'example auth content',
-        // Authorization: `Bearer ${userJwt}`,
-      },
-      body: JSON.stringify({
-        settingsString: settingsString,
-        seed: $('#seed').val(),
-      }),
-    })
-    .then((response) => response.json())
-    .then((data) => {
-      console.log('/api/seed/generate data');
-      console.log(data);
-
-      testProgressFunc(data.data.id);
-
-      // if (data.error) {
-      //   generateCallInProgress = false;
-      //   console.error('`/api/generateseed` error:');
-      //   console.error(data);
-      //   showGeneratingModalError(`Error:\n${data.error}`);
-      // } else if (data.data && data.data.id) {
-      //   window.location.href = '/seed?id=' + data.data.id;
-      // } else {
-      //   generateCallInProgress = false;
-      //   console.error('Unrecognized response from `/api/generateseed`');
-      //   console.error(data);
-      //   showGeneratingModalError(
-      //     'Unrecognized response from `/api/generateseed`.'
-      //   );
-      // }
-    })
-    .catch((err) => {
-      console.error('/api/seed/generate error');
       console.error(err);
     });
 }

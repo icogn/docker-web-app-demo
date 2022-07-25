@@ -2,9 +2,9 @@ namespace TPRandomizer
 {
     using System.Collections.Generic;
     using System.Linq;
-
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
+    using TPRandomizer.SSettings.Enums;
 
     [JsonConverter(typeof(StringEnumConverter))]
     public enum Item : byte
@@ -673,97 +673,97 @@ namespace TPRandomizer
         /// </summary>
         public void GenerateItemPool()
         {
-            RandomizerSetting parseSetting = Randomizer.RandoSetting;
+            SharedSettings parseSetting = Randomizer.SSettings;
             Randomizer.Items.RandomizedImportantItems.AddRange(this.ImportantItems);
             Randomizer.Items.BaseItemPool.AddRange(this.VanillaDungeonRewards);
             Randomizer.Items.ShuffledDungeonRewards.AddRange(this.VanillaDungeonRewards);
 
-            if (parseSetting.poesShuffled)
+            if (parseSetting.shufflePoes)
             {
                 this.RandomizedImportantItems.AddRange(Enumerable.Repeat(Item.Poe_Soul, 60));
             }
 
-            if (parseSetting.goldenBugsShuffled)
+            if (parseSetting.shuffleGoldenBugs)
             {
                 this.RandomizedImportantItems.AddRange(this.goldenBugs);
             }
 
             // Check Small Key settings before adding them to the rando pool
             if (
-                (parseSetting.smallKeySettings == "Own_Dungeon")
-                || (parseSetting.smallKeySettings == "Any_Dungeon")
+                (parseSetting.smallKeySettings == SmallKeySettings.Own_Dungeon)
+                || (parseSetting.smallKeySettings == SmallKeySettings.Any_Dungeon)
             )
             {
                 this.RandomizedDungeonRegionItems.AddRange(this.RegionSmallKeys);
                 Randomizer.Items.BaseItemPool.AddRange(this.RegionSmallKeys);
             }
-            else if (parseSetting.smallKeySettings == "Keysanity")
+            else if (parseSetting.smallKeySettings == SmallKeySettings.Anywhere)
             {
                 this.RandomizedImportantItems.AddRange(this.RegionSmallKeys);
             }
-            else if (parseSetting.smallKeySettings == "Keysey")
+            else if (parseSetting.smallKeySettings == SmallKeySettings.Keysey)
             {
                 this.RandomizedImportantItems.Remove(Item.Gate_Keys);
-                if (!parseSetting.StartingItems.Contains(Item.Gerudo_Desert_Bulblin_Camp_Key))
+                if (!parseSetting.startingItems.Contains(Item.Gerudo_Desert_Bulblin_Camp_Key))
                 {
-                    parseSetting.StartingItems.Add(Item.Gerudo_Desert_Bulblin_Camp_Key);
+                    parseSetting.startingItems.Add(Item.Gerudo_Desert_Bulblin_Camp_Key);
                 }
             }
 
             // Check Big Key Settings before adding them to the pool
             if (
-                (parseSetting.bossKeySettings == "Own_Dungeon")
-                || (parseSetting.bossKeySettings == "Any_Dungeon")
+                (parseSetting.bigKeySettings == BigKeySettings.Own_Dungeon)
+                || (parseSetting.bigKeySettings == BigKeySettings.Any_Dungeon)
             )
             {
                 this.RandomizedDungeonRegionItems.AddRange(this.DungeonBigKeys);
                 Randomizer.Items.BaseItemPool.AddRange(this.DungeonBigKeys);
             }
-            else if (parseSetting.bossKeySettings == "Keysanity")
+            else if (parseSetting.bigKeySettings == BigKeySettings.Anywhere)
             {
                 this.RandomizedImportantItems.AddRange(this.DungeonBigKeys);
             }
 
             // Check Map and Compass settings before adding to pool
             if (
-                (parseSetting.mapAndCompassSettings == "Own_Dungeon")
-                || (parseSetting.mapAndCompassSettings == "Any_Dungeon")
+                (parseSetting.mapAndCompassSettings == MapAndCompassSettings.Own_Dungeon)
+                || (parseSetting.mapAndCompassSettings == MapAndCompassSettings.Any_Dungeon)
             )
             {
                 this.RandomizedDungeonRegionItems.AddRange(this.DungeonMapsAndCompasses);
                 Randomizer.Items.BaseItemPool.AddRange(this.DungeonMapsAndCompasses);
             }
-            else if (parseSetting.mapAndCompassSettings == "Anywhere")
+            else if (parseSetting.mapAndCompassSettings == MapAndCompassSettings.Anywhere)
             {
                 this.RandomizedImportantItems.AddRange(this.DungeonMapsAndCompasses);
             }
 
             // Modifying Item Pool based on ice trap settings
             // If we have Ice Trap Mayhem or Nightmare, all extra junk items are replaced with Foolish Items
-            switch (parseSetting.iceTrapSettings)
+            switch (parseSetting.trapFrequency)
             {
-                case "Few": // There is a small chance that a Foolish Item could appear
+                case TrapFrequency.Few: // There is a small chance that a Foolish Item could appear
                 {
                     this.JunkItems.AddRange(this.vanillaJunkItems);
                     this.JunkItems.AddRange(Enumerable.Repeat(Item.Foolish_Item, 6));
                     break;
                 }
 
-                case "Many": // There is an increased chance that a Foolish Item could appear
+                case TrapFrequency.Many: // There is an increased chance that a Foolish Item could appear
                 {
                     this.JunkItems.AddRange(this.vanillaJunkItems);
                     this.JunkItems.AddRange(Enumerable.Repeat(Item.Foolish_Item, 27));
                     break;
                 }
 
-                case "Mayhem": // All junk items outside of the item pool are Foolish Items
+                case TrapFrequency.Mayhem: // All junk items outside of the item pool are Foolish Items
                 {
                     this.JunkItems.AddRange(this.vanillaJunkItems);
                     this.JunkItems.AddRange(Enumerable.Repeat(Item.Foolish_Item, 64));
                     break;
                 }
 
-                case "Nightmare": // All junk items are Foolish Items
+                case TrapFrequency.Nightmare: // All junk items are Foolish Items
                 {
                     this.JunkItems.Add(Item.Foolish_Item);
                     break;
@@ -776,17 +776,17 @@ namespace TPRandomizer
                 }
             }
 
-            foreach (Item startingItem in parseSetting.StartingItems)
+            foreach (Item startingItem in parseSetting.startingItems)
             {
                 RandomizedImportantItems.Remove(startingItem);
             }
 
             // If a poe is excluded, we still want to place the item that was in its location.
-            foreach (string excludedCheck in parseSetting.ExcludedChecks)
+            foreach (string excludedCheck in parseSetting.excludedChecks)
             {
                 if (Randomizer.Checks.CheckDict[excludedCheck].itemId == Item.Poe_Soul)
                 {
-                    if (!parseSetting.poesShuffled)
+                    if (!parseSetting.shufflePoes)
                     {
                         this.alwaysItems.Add(Randomizer.Checks.CheckDict[excludedCheck].itemId);
                     }
@@ -796,7 +796,7 @@ namespace TPRandomizer
             // Remove the bulblin camp key from the item pool if we have the setting to skip Bulblin Camp enabled.
             if (parseSetting.skipArbitersEntrance)
             {
-                if (parseSetting.smallKeySettings == "Keysanity")
+                if (parseSetting.smallKeySettings == SmallKeySettings.Anywhere)
                 {
                     this.RandomizedImportantItems.Remove(Item.Gerudo_Desert_Bulblin_Camp_Key);
                 }

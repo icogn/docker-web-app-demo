@@ -167,7 +167,7 @@
     pageData = JSON.parse(inputJsonDataEl.value);
 
     const decodedSettings = window.tpr.shared.decodeSettingsString(
-      pageData.settingsString
+      pageData.input.settings
     );
 
     initTabButtons();
@@ -234,7 +234,7 @@
   }
 
   function fillInInfo() {
-    const date = new Date(pageData.timestamp);
+    const date = new Date(pageData.meta.ts);
 
     let locales = navigator.languages;
     if (locales == null) {
@@ -242,8 +242,8 @@
     }
 
     $('#timestamp').text(
-      // date.toLocaleDateString(locales, {
-      date.toLocaleDateString('en-US', {
+      date.toLocaleDateString(locales, {
+        // date.toLocaleDateString('en-US', {
         weekday: 'short',
         year: 'numeric',
         month: 'numeric',
@@ -254,14 +254,17 @@
         timeZoneName: 'short',
       })
     );
-    $('#seed').text(pageData.seed);
-    $('#settingsString').text(pageData.settingsString);
+    $('#seed').text(pageData.input.seed);
+    $('#settingsString').text(pageData.input.settings);
 
-    const arr = [];
-
-    arr.push({ label: 'Created', value: pageData.timestamp });
-    arr.push({ label: 'Seed', value: pageData.seed });
-    arr.push({ label: 'Settings String', value: pageData.settingsString });
+    const arr = [
+      { label: 'Created', value: pageData.meta.ts },
+      { label: 'Seed', value: pageData.input.seed },
+      {
+        label: 'Settings String',
+        value: pageData.input.settings,
+      },
+    ];
 
     byId('info').innerHTML = arr
       .map((obj) => {
@@ -269,7 +272,7 @@
       })
       .join(' -- ');
 
-    byId('filename').textContent = pageData.filename;
+    byId('filename').textContent = pageData.output.name;
   }
 
   // Parse SSetting to object.
@@ -334,13 +337,13 @@
       { id: 'gameRegion', bitLength: 3 },
       { id: 'seedNumber', bitLength: 4 },
 
-      { id: 'bgmFieldset', bitLength:2 },
+      { id: 'bgmFieldset', bitLength: 2 },
       { id: 'randomizeFanfaresCheckbox' },
       { id: 'disableEnemyBGMCheckbox' },
 
-      { id: 'tunicColorFieldset', bitLength: 4 },
+      // { id: 'tunicColorFieldset', bitLength: 4 },
       { id: 'lanternColorFieldset', bitLength: 4 },
-      { id: 'midnaHairColorFieldset', bitLength: 1 },
+      // { id: 'midnaHairColorFieldset', bitLength: 1 },
       { id: 'heartColorFieldset', bitLength: 4 },
       { id: 'aButtonColorFieldset', bitLength: 4 },
       { id: 'bButtonColorFieldset', bitLength: 3 },
